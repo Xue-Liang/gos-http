@@ -30,6 +30,8 @@ import org.apache.http.protocol.RequestTargetHost;
 import org.apache.http.protocol.RequestUserAgent;
 import org.apache.http.util.EntityUtils;
 
+import com.gos.http.client.BasicHttpClientConnection;
+
 public class BasicHttpClient {
 	private static final HttpRequestExecutor httpExecutor = new HttpRequestExecutor();
 	private static final HttpProcessor httpProcessor = HttpProcessorBuilder.create().add(new RequestContent()).add(new RequestTargetHost()).add(new RequestConnControl()).add(new RequestUserAgent("Mozilla/5.0")).add(new RequestExpectContinue(true)).build();
@@ -93,7 +95,7 @@ public class BasicHttpClient {
 	}
 
 	/**
-	 * 发�?请求,得到服务器端响应
+	 * 发送请求,得到服务器端响应
 	 * 
 	 * @param url
 	 *            url
@@ -131,12 +133,12 @@ public class BasicHttpClient {
 	}
 
 	/**
-	 * 从连接池中拉出一个连�?
+	 * 从连接池中拉出一个连接
 	 * 
 	 * @param host
 	 *            主机地址
 	 * @param port
-	 *            端口�?
+	 *            端口号
 	 * @return
 	 */
 	private static BasicHttpClientConnection pullHttpClientConnection(String host, int port) {
