@@ -39,7 +39,7 @@ public class BasicHttpClient {
 
 	private static final String empty = "";
 
-	private enum method {
+	public enum method {
 		GET, HEAD, POST, PUT, DELETE
 	};
 
