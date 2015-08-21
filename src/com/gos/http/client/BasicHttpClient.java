@@ -17,8 +17,10 @@ import org.apache.http.HttpResponse;
 import org.apache.http.ParseException;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
+import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicHttpEntityEnclosingRequest;
 import org.apache.http.message.BasicHttpRequest;
+import org.apache.http.protocol.HTTP;
 import org.apache.http.protocol.HttpCoreContext;
 import org.apache.http.protocol.HttpProcessor;
 import org.apache.http.protocol.HttpProcessorBuilder;
@@ -30,22 +32,23 @@ import org.apache.http.protocol.RequestTargetHost;
 import org.apache.http.protocol.RequestUserAgent;
 import org.apache.http.util.EntityUtils;
 
-import com.gos.http.client.BasicHttpClientConnection;
-
 public class BasicHttpClient {
 	private static final HttpRequestExecutor httpExecutor = new HttpRequestExecutor();
 	private static final HttpProcessor httpProcessor = HttpProcessorBuilder.create().add(new RequestContent()).add(new RequestTargetHost()).add(new RequestConnControl()).add(new RequestUserAgent("Mozilla/5.0")).add(new RequestExpectContinue(true)).build();
 	private static final Map<String, LinkedBlockingQueue<BasicHttpClientConnection>> pool = new ConcurrentHashMap<>();
-
+	private static final Header[] basicHeaders = {
+			new BasicHeader(HTTP.USER_AGENT, "Mozilla/5.0"),
+			new BasicHeader("Content-Type", "application/x-www-form-urlencoded")};
 	private static final String empty = "";
 
-	public enum method {
+	private enum method {
 		GET, HEAD, POST, PUT, DELETE
 	};
 
 	public static String get(URL url, Header... headers) {
 		String path = url.getPath().length() < 1 ? "/" : url.getPath();
 		HttpRequest req = new BasicHttpRequest(method.GET.name(), path);
+		req.setHeaders(basicHeaders);
 		if (headers.length > 0) {
 			req.setHeaders(headers);
 		}
@@ -67,16 +70,20 @@ public class BasicHttpClient {
 		String path = url.getPath().length() < 1 ? "/" : url.getPath();
 		BasicHttpEntityEnclosingRequest req = null;
 		req = new BasicHttpEntityEnclosingRequest(method.POST.name(), path);
+		req.setHeaders(basicHeaders);
 		if (headers.length > 0) {
 			req.setHeaders(headers);
 		}
 		if (parameters != null && parameters.size() > 0) {
-			StringBuilder cup = new StringBuilder(123);
+			StringBuilder cup = new StringBuilder(128);
+			int counter = 0;
 			for (Map.Entry<String, Object> kv : parameters.entrySet()) {
+				if (counter++ > 0)
+					cup.append("&");
 				cup.append(kv.getKey()).append("=").append(kv.getValue());
-				cup.append("&");
 			}
-			ContentType contentType = ContentType.create("text/plain", Consts.UTF_8);
+			ContentType contentType = ContentType.create("text/html", Consts.UTF_8);
+
 			HttpEntity entity = new StringEntity(cup.toString(), contentType);
 			req.setEntity(entity);
 		}
