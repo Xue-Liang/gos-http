@@ -158,7 +158,7 @@ public class BasicHttpClient {
 		BasicHttpClientConnection conn = queue.poll();
 		if (conn == null) {
 			conn = new BasicHttpClientConnection(1024 * 5);
-			conn.setName(String.valueOf(System.nanoTime()));
+			conn.setName(host+":"+post);
 			if (!conn.isOpen()) {
 				Socket socket = null;
 				try {
