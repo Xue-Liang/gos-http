@@ -34,16 +34,24 @@ import org.apache.http.util.EntityUtils;
 
 public class BasicHttpClient {
 	private static final HttpRequestExecutor httpExecutor = new HttpRequestExecutor();
-	private static final HttpProcessor httpProcessor = HttpProcessorBuilder.create().add(new RequestContent()).add(new RequestTargetHost()).add(new RequestConnControl()).add(new RequestUserAgent("Mozilla/5.0")).add(new RequestExpectContinue(true)).build();
+	private static final HttpProcessor httpProcessor = HttpProcessorBuilder
+			.create().add(new RequestContent()).add(new RequestTargetHost())
+			.add(new RequestConnControl())
+			.add(new RequestUserAgent("Mozilla/5.0"))
+			.add(new RequestExpectContinue(true)).build();
 	private static final Map<String, LinkedBlockingQueue<BasicHttpClientConnection>> pool = new ConcurrentHashMap<>();
 	private static final Header[] basicHeaders = {
 			new BasicHeader(HTTP.USER_AGENT, "Mozilla/5.0"),
-			new BasicHeader("Content-Type", "application/x-www-form-urlencoded")};
+			new BasicHeader("Content-Type", "application/x-www-form-urlencoded") };
 	private static final String empty = "";
 
 	private enum method {
 		GET, HEAD, POST, PUT, DELETE
 	};
+
+	private BasicHttpClient() {
+
+	}
 
 	public static String get(URL url, Header... headers) {
 		String path = url.getPath().length() < 1 ? "/" : url.getPath();
@@ -66,7 +74,8 @@ public class BasicHttpClient {
 		return body;
 	}
 
-	public static String post(URL url, Map<String, Object> parameters, Header... headers) {
+	public static String post(URL url, Map<String, Object> parameters,
+			Header... headers) {
 		String path = url.getPath().length() < 1 ? "/" : url.getPath();
 		BasicHttpEntityEnclosingRequest req = null;
 		req = new BasicHttpEntityEnclosingRequest(method.POST.name(), path);
@@ -82,7 +91,8 @@ public class BasicHttpClient {
 					cup.append("&");
 				cup.append(kv.getKey()).append("=").append(kv.getValue());
 			}
-			ContentType contentType = ContentType.create("text/html", Consts.UTF_8);
+			ContentType contentType = ContentType.create("text/html",
+					Consts.UTF_8);
 
 			HttpEntity entity = new StringEntity(cup.toString(), contentType);
 			req.setEntity(entity);
@@ -148,7 +158,8 @@ public class BasicHttpClient {
 	 *            端口号
 	 * @return
 	 */
-	private static BasicHttpClientConnection pullHttpClientConnection(String host, int port) {
+	private static BasicHttpClientConnection pullHttpClientConnection(
+			String host, int port) {
 		LinkedBlockingQueue<BasicHttpClientConnection> queue = pool.get(host);
 		if (queue == null) {
 			queue = new LinkedBlockingQueue<BasicHttpClientConnection>();
@@ -158,7 +169,7 @@ public class BasicHttpClient {
 		BasicHttpClientConnection conn = queue.poll();
 		if (conn == null) {
 			conn = new BasicHttpClientConnection(1024 * 5);
-			conn.setName(host+":"+post);
+			conn.setName(host + ":" + port);
 			if (!conn.isOpen()) {
 				Socket socket = null;
 				try {
@@ -180,7 +191,8 @@ public class BasicHttpClient {
 	 * @param conn
 	 *            连接
 	 */
-	private static void pushHttpClientConnection(String host, BasicHttpClientConnection conn) {
+	private static void pushHttpClientConnection(String host,
+			BasicHttpClientConnection conn) {
 		LinkedBlockingQueue<BasicHttpClientConnection> conns = pool.get(host);
 		if (conns == null) {
 			conns = new LinkedBlockingQueue<BasicHttpClientConnection>();
@@ -194,7 +206,8 @@ public class BasicHttpClient {
 	}
 
 	public static void shutdown() {
-		for (Map.Entry<String, LinkedBlockingQueue<BasicHttpClientConnection>> kv : pool.entrySet()) {
+		for (Map.Entry<String, LinkedBlockingQueue<BasicHttpClientConnection>> kv : pool
+				.entrySet()) {
 			for (BasicHttpClientConnection conn : kv.getValue()) {
 				try {
 					conn.shutdown();
@@ -202,5 +215,11 @@ public class BasicHttpClient {
 				}
 			}
 		}
+		pool.clear();
+	}
+
+	@Override
+	public void finalize() {
+		shutdown();
 	}
 }
