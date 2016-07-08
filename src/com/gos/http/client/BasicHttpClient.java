@@ -39,11 +39,12 @@ public class BasicHttpClient {
 			.add(new RequestConnControl())
 			.add(new RequestUserAgent("Mozilla/5.0"))
 			.add(new RequestExpectContinue(true)).build();
-	private static final Map<String, LinkedBlockingQueue<BasicHttpClientConnection>> pool = new ConcurrentHashMap<>();
-	private static final Header[] basicHeaders = {
+	private static final Map<String, LinkedBlockingQueue<BasicHttpClientConnection>> ConnectionPool = new ConcurrentHashMap<>();
+	private static final Header[] BasicHeaders = {
 			new BasicHeader(HTTP.USER_AGENT, "Mozilla/5.0"),
+			new BasicHeader("Connection", HTTP.CONN_KEEP_ALIVE),
 			new BasicHeader("Content-Type", "application/x-www-form-urlencoded") };
-	private static final String empty = "";
+	private static final String Empty = "";
 
 	private enum method {
 		GET, HEAD, POST, PUT, DELETE
@@ -56,12 +57,12 @@ public class BasicHttpClient {
 	public static String get(URL url, Header... headers) {
 		String path = url.getPath().length() < 1 ? "/" : url.getPath();
 		HttpRequest req = new BasicHttpRequest(method.GET.name(), path);
-		req.setHeaders(basicHeaders);
-		if (headers.length > 0) {
+		req.setHeaders(BasicHeaders);
+		if (headers != null && headers.length > 0) {
 			req.setHeaders(headers);
 		}
 		HttpResponse resp = execute(url, req);
-		String body = empty;
+		String body = Empty;
 
 		if (resp != null) {
 			try {
@@ -77,10 +78,13 @@ public class BasicHttpClient {
 	public static String post(URL url, Map<String, Object> parameters,
 			Header... headers) {
 		String path = url.getPath().length() < 1 ? "/" : url.getPath();
+		String queryString = url.getQuery().length() < 1 ? "" : url.getQuery();
+
 		BasicHttpEntityEnclosingRequest req = null;
-		req = new BasicHttpEntityEnclosingRequest(method.POST.name(), path);
-		req.setHeaders(basicHeaders);
-		if (headers.length > 0) {
+		req = new BasicHttpEntityEnclosingRequest(method.POST.name(), path
+				+ "?" + queryString);
+		req.setHeaders(BasicHeaders);
+		if (headers != null && headers.length > 0) {
 			req.setHeaders(headers);
 		}
 		if (parameters != null && parameters.size() > 0) {
@@ -98,15 +102,13 @@ public class BasicHttpClient {
 			req.setEntity(entity);
 		}
 		HttpResponse resp = null;
-		String body = empty;
+		String body = Empty;
 		try {
 			resp = execute(url, req);
 			body = EntityUtils.toString(resp.getEntity());
 		} catch (ParseException | IOException | IllegalStateException e) {
 		} finally {
-			if (resp != null) {
-				EntityUtils.consumeQuietly(resp.getEntity());
-			}
+
 		}
 		return body;
 	}
@@ -160,10 +162,11 @@ public class BasicHttpClient {
 	 */
 	private static BasicHttpClientConnection pullHttpClientConnection(
 			String host, int port) {
-		LinkedBlockingQueue<BasicHttpClientConnection> queue = pool.get(host);
+		LinkedBlockingQueue<BasicHttpClientConnection> queue = ConnectionPool
+				.get(host);
 		if (queue == null) {
 			queue = new LinkedBlockingQueue<BasicHttpClientConnection>();
-			pool.put(host, queue);
+			ConnectionPool.put(host, queue);
 		}
 
 		BasicHttpClientConnection conn = queue.poll();
@@ -193,10 +196,11 @@ public class BasicHttpClient {
 	 */
 	private static void pushHttpClientConnection(String host,
 			BasicHttpClientConnection conn) {
-		LinkedBlockingQueue<BasicHttpClientConnection> conns = pool.get(host);
+		LinkedBlockingQueue<BasicHttpClientConnection> conns = ConnectionPool
+				.get(host);
 		if (conns == null) {
 			conns = new LinkedBlockingQueue<BasicHttpClientConnection>();
-			pool.put(host, conns);
+			ConnectionPool.put(host, conns);
 		}
 		try {
 			conns.put(conn);
@@ -206,7 +210,7 @@ public class BasicHttpClient {
 	}
 
 	public static void shutdown() {
-		for (Map.Entry<String, LinkedBlockingQueue<BasicHttpClientConnection>> kv : pool
+		for (Map.Entry<String, LinkedBlockingQueue<BasicHttpClientConnection>> kv : ConnectionPool
 				.entrySet()) {
 			for (BasicHttpClientConnection conn : kv.getValue()) {
 				try {
@@ -215,7 +219,7 @@ public class BasicHttpClient {
 				}
 			}
 		}
-		pool.clear();
+		ConnectionPool.clear();
 	}
 
 	@Override
